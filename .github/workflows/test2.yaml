@@ -20,9 +20,8 @@ jobs:
 
     - name: Configure Git
       run: |
-        # Set the Git user for the GitHub App
-        git config --global user.name "issuerepoapp bot"  # Replace with your GitHub App's name
-        git config --global user.email "issuerepoapp-bot@users.noreply.github.com"  # Replace with your GitHub App's email
+        git config --global user.name "issuerepoapp bot"
+        git config --global user.email "issuerepoapp-bot@users.noreply.github.com"
 
     - name: Modify test.md
       run: |
@@ -32,5 +31,5 @@ jobs:
 
     - name: Push to Main using GitHub App Token
       run: |
-        # Use GitHub App token for authentication and push to the main branch
+        # Push changes to the main branch using the GitHub App token
         git push https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }} HEAD:main --force
