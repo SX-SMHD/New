@@ -31,5 +31,4 @@ jobs:
 
     - name: Push to Main using GitHub App Token
       run: |
-        # Push to the main branch using the GitHub App token
         git push https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/${{ github.repository }} HEAD:main --force
