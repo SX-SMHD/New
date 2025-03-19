@@ -1,10 +1,11 @@
 name: Create, Approve, and Auto-Merge PR
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch: # Only run when manually triggered
+
+concurrency:
+  group: auto-merge-pr
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -25,11 +26,11 @@ jobs:
         app-id: ${{ secrets.ISSUEREPOAPP_APP_ID }}
         private-key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}
 
-    - name: Prevent Bot Loop
+    - name: Prevent Repeated PR Creation
       run: |
         LAST_COMMITTER=$(git log -1 --pretty=format:'%an')
         if [[ "$LAST_COMMITTER" == "issuerepoapp bot" ]]; then
-          echo "⚠️ Last commit was made by issuerepoapp bot. Exiting to prevent infinite loop."
+          echo "⚠️ Last commit was made by issuerepoapp bot. Skipping PR creation."
           exit 0
         fi
 
