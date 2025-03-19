@@ -18,7 +18,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
       with:
-        fetch-depth: 0  # Ensures full history to handle conflicts
+        fetch-depth: 0  # Ensures full history for conflict resolution
 
     - name: Generate GitHub App Token
       id: generate-token
@@ -40,16 +40,25 @@ jobs:
         git config --global user.name 'issuerepoapp bot'
         git config --global user.email 'issuerepoapp-bot@users.noreply.github.com'
 
-    - name: Create or update branch
+    - name: Cleanup Stale Rebase
+      run: |
+        if [ -d ".git/rebase-merge" ]; then
+          echo "⚠️ Found stale rebase. Cleaning up..."
+          rm -rf .git/rebase-merge
+        fi
+
+    - name: Create or Update Branch
       run: |
         git fetch origin update-test-md || true
         git checkout -b update-test-md || git checkout update-test-md
-        git pull origin update-test-md --rebase || echo "No remote changes to rebase."
         
+        # Ensure the latest changes are fetched before making new edits
+        git pull --rebase origin update-test-md || echo "No remote changes to rebase."
+
         echo "Hello" >> test.md
         git add test.md
 
-        # Auto-resolve merge conflicts by keeping both changes
+        # Handle Merge Conflicts Automatically
         if [[ $(git ls-files -u | wc -l) -gt 0 ]]; then
           echo "🔀 Merge conflicts detected! Auto-resolving..."
           git diff --name-only --diff-filter=U | while read file; do
@@ -65,20 +74,20 @@ jobs:
           git commit -m 'Append Hello to test.md file'
         fi
 
-    - name: Push changes
+    - name: Push Changes (Handle Non-Fast-Forward)
       run: |
-        git push origin update-test-md || (git pull --rebase origin update-test-md && git push origin update-test-md)
+        git pull --rebase origin update-test-md
+        git push origin update-test-md --force-with-lease
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-    - name: Create or get PR number
+    - name: Create or Get PR Number
       id: check-pr
       run: |
         sudo apt-get install -y jq
         PR_RESPONSE=$(curl -s -X GET \
           -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&head=${{ github.repository_owner }}:update-test-md")
-
         PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.[0].number // empty')
 
         if [[ -n "$PR_NUMBER" ]]; then
