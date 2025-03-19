@@ -1,4 +1,4 @@
-name: Create and Auto-Approve Pull Request
+name: Create and Auto-Merge Pull Request
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  create-and-approve-pr:
+  create-and-merge-pr:
     runs-on: ubuntu-latest
 
     steps:
@@ -37,22 +37,16 @@ jobs:
         git add test.md
         git commit -m 'Append Hello to test.md file' || echo "No new changes to commit"
 
-    - name: Pull latest changes
-      run: |
-        git fetch origin update-test-md || echo "No remote branch found"
-        git rebase origin/update-test-md || echo "Rebase failed, continuing"
-      env:
-        GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-
     - name: Push changes
       run: git push origin update-test-md --force
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-    - name: Check if PR exists or create one
-      id: check-or-create-pr
+    - name: Create or get PR number
+      id: check-pr
       run: |
         sudo apt-get install -y jq  # Ensure jq is installed
+
         PR_RESPONSE=$(curl -s -X GET \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -61,7 +55,7 @@ jobs:
         PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "github-actions[bot]")][0].number')
 
         if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
-          echo "PR already exists: #$PR_NUMBER"
+          echo "Existing PR found: #$PR_NUMBER"
         else
           echo "Creating a new PR..."
           PR_CREATE_RESPONSE=$(curl -s -X POST \
@@ -74,31 +68,35 @@ jobs:
                   "base": "main",
                   "body": "This pull request appends Hello to the test.md file."
                 }')
+
           PR_NUMBER=$(echo "$PR_CREATE_RESPONSE" | jq '.number')
+
           if [ "$PR_NUMBER" == "null" ] || [ -z "$PR_NUMBER" ]; then
             echo "❌ Failed to create PR. Response: $PR_CREATE_RESPONSE"
             exit 1
           fi
+
           echo "✅ Created PR: #$PR_NUMBER"
         fi
 
-        # Store PR_NUMBER as an environment variable
+        # Store PR number for the next step
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+        echo "::set-output name=PR_NUMBER::$PR_NUMBER"
 
-    - name: Approve pull request
+    - name: Auto-Merge Pull Request
       run: |
         if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
-          echo "❌ PR_NUMBER is empty. Cannot approve PR."
+          echo "❌ PR_NUMBER is empty. Cannot merge PR."
           exit 1
         fi
 
-        RESPONSE=$(curl -s -X POST \
+        MERGE_RESPONSE=$(curl -s -X PUT \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
           -d '{
-                "event": "APPROVE",
-                "body": "Auto-approved by GitHub Actions"
+                "commit_title": "Auto-merged PR",
+                "merge_method": "squash"
               }')
 
-        echo "Response: $RESPONSE"
+        echo "Merge Response: $MERGE_RESPONSE"
