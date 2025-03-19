@@ -13,6 +13,8 @@ permissions:
 jobs:
   create-or-fetch-pr:
     runs-on: ubuntu-latest
+    outputs:
+      PR_NUMBER: ${{ steps.check-pr.outputs.PR_NUMBER }}  # Store PR_NUMBER as output
 
     steps:
     - name: Checkout code
@@ -62,7 +64,6 @@ jobs:
 
         if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
           echo "PR already exists from GitHub Actions: #$PR_NUMBER"
-          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
         else
           echo "No PR from GitHub Actions found. Creating a new one..."
           PR_CREATE_RESPONSE=$(curl -s -X POST \
@@ -82,10 +83,12 @@ jobs:
             echo "❌ Failed to create PR. Response: $PR_CREATE_RESPONSE"
             exit 1
           fi
-
           echo "✅ Created PR: #$PR_NUMBER"
-          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
         fi
+
+        # Store PR_NUMBER in GitHub Actions output for the next job
+        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+        echo "::set-output name=PR_NUMBER::$PR_NUMBER"
 
     - name: Output PR number
       run: echo "Final PR Number: $PR_NUMBER"
@@ -93,11 +96,11 @@ jobs:
   approve-pr:
     needs: create-or-fetch-pr
     runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ needs.create-or-fetch-pr.outputs.PR_NUMBER }}  # Use output from previous job
 
     steps:
     - name: Approve pull request
-      env:
-        PR_NUMBER: ${{ env.PR_NUMBER }}  # Ensure PR_NUMBER is available in the environment
       run: |
         if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
           echo "❌ PR_NUMBER is empty. Cannot approve PR."
