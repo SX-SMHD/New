@@ -1,4 +1,4 @@
-name: Create, Approve, and Auto-Merge PR
+name: Create and Auto-Merge PR
 
 on:
   workflow_dispatch
@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  create-approve-merge-pr:
+  create-merge-pr:
     runs-on: ubuntu-latest
 
     steps:
@@ -84,24 +84,6 @@ jobs:
           echo "Created PR: #$PR_NUMBER"
         fi
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-        echo "::set-output name=PR_NUMBER::$PR_NUMBER"
-
-    - name: Approve Pull Request
-      env:
-        GH_PAT_APPROVER: ${{ secrets.GH_PAT_APPROVER }}
-      run: |
-        if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
-          echo "PR_NUMBER is empty. Cannot approve PR."
-          exit 1
-        fi
-        RESPONSE=$(curl -s -X POST \
-          -H "Authorization: token $GH_PAT_APPROVER" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
-          -d '{
-                "event": "APPROVE",
-                "body": "Auto-approved by GitHub Actions (via separate account)"
-              }')
-        echo "Approval Response: $RESPONSE"
 
     - name: Auto-Merge Pull Request
       run: |
