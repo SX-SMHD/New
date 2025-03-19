@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   check-branch-protection:
@@ -12,6 +13,13 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
+
+    - name: Generate token
+      id: generate-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ secrets.ISSUEREPOAPP_APP_ID }}
+        private-key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}
 
     - name: Create test.md file
       run: echo "# Test File" > test.md
@@ -24,7 +32,9 @@ jobs:
         git commit -m 'Add test.md file'
 
     - name: Push changes
-      uses: SX-SMHD/New/.github/actions/issuerepoapp@main # Replace with the correct path to your custom action
+      uses: actions/github-script@v5
       with:
-        github_token: ${{ secrets.ISSUEREPOAPP }}
-        branch: main
+        github_token: ${{ steps.generate-token.outputs.token }}
+        script: |
+          const { execSync } = require('child_process');
+          execSync('git push origin main');
