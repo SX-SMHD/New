@@ -28,19 +28,18 @@ jobs:
           git add test.md
           git commit -m "Append 'Hello' to test.md" || echo "No changes to commit"
 
-      - name: Fetch all remote branches
+      - name: Fetch All Branches from Remote
         run: |
           git fetch --all  # Fetch all branches from the remote repository
+          git branch -r  # List all remote branches to confirm dev exists
 
-      - name: Checkout dev branch (or correct branch name)
+      - name: Checkout main
         run: |
-          git checkout dev || echo "dev branch does not exist, skipping merge"  # Replace with the correct branch name if necessary
-
-      - name: Push Changes & Merge to Main
-        env:
-          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}  # Use GitHub App token for authentication
-        run: |
-          git fetch origin  # Fetch all branches from origin
           git checkout main  # Ensure we're on the main branch
-          git merge --no-ff origin/dev -m "Automated merge from dev to main"  # Use the correct branch name if necessary
+          git pull origin main  # Pull latest changes from remote main to sync
+
+      - name: Merge dev into main
+        run: |
+          git fetch origin dev  # Fetch the remote dev branch
+          git merge --no-ff origin/dev -m "Automated merge from dev to main"  # Merge dev into main
           git push origin main  # Push the changes to 'main'
