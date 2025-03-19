@@ -1,11 +1,10 @@
 name: Create, Approve, and Auto-Merge Pull Request
 
 on:
-  workflow_run:
-    workflows: ["Create, Approve, and Auto-Merge Pull Request"]
-    types:
-      - completed
-  workflow_dispatch:  # Allow manual trigger
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,14 +29,14 @@ jobs:
       run: |
         LAST_COMMITTER=$(git log -1 --pretty=format:'%an')
         if [[ "$LAST_COMMITTER" == "issuerepoapp bot" ]]; then
-          echo "⚠️ Last commit was made by a bot. Exiting to prevent infinite loop."
+          echo "⚠️ Last commit was made by issuerepoapp bot. Exiting to prevent infinite loop."
           exit 0
         fi
 
     - name: Configure Git
       run: |
         git config --global user.name 'issuerepoapp bot'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git config --global user.email 'issuerepoapp-bot@users.noreply.github.com'
 
     - name: Create or update branch
       run: |
