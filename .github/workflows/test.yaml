@@ -14,7 +14,7 @@ jobs:
   create-or-fetch-pr:
     runs-on: ubuntu-latest
     outputs:
-      PR_NUMBER: ${{ steps.check-pr.outputs.PR_NUMBER }}  # Correct output reference
+      PR_NUMBER: ${{ steps.check-pr.outputs.PR_NUMBER }}  # Store PR_NUMBER correctly
 
     steps:
     - name: Checkout code
@@ -52,7 +52,7 @@ jobs:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
     - name: Check if PR exists (only from GitHub Actions)
-      id: check-pr  # Step ID is needed for output storage
+      id: check-pr
       run: |
         sudo apt-get install -y jq  # Ensure jq is installed
         PR_RESPONSE=$(curl -s -X GET \
@@ -63,9 +63,9 @@ jobs:
         PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "github-actions[bot]")][0].number')
 
         if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
-          echo "PR already exists from GitHub Actions: #$PR_NUMBER"
+          echo "PR already exists: #$PR_NUMBER"
         else
-          echo "No PR from GitHub Actions found. Creating a new one..."
+          echo "Creating a new PR..."
           PR_CREATE_RESPONSE=$(curl -s -X POST \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -84,12 +84,12 @@ jobs:
           echo "✅ Created PR: #$PR_NUMBER"
         fi
 
-        # Store PR_NUMBER as an output of this step
+        # Correctly set PR_NUMBER as step output
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-        echo "::set-output name=PR_NUMBER::$PR_NUMBER"
+        echo "PR_NUMBER=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
     - name: Output PR number
-      run: echo "Final PR Number: ${{ steps.check-pr.outputs.PR_NUMBER }}"  # Correct syntax
+      run: echo "Final PR Number: ${{ steps.check-pr.outputs.PR_NUMBER }}"  # Correct reference
 
   approve-pr:
     needs: create-or-fetch-pr
@@ -97,7 +97,7 @@ jobs:
     steps:
     - name: Approve pull request
       env:
-        PR_NUMBER: ${{ needs.create-or-fetch-pr.outputs.PR_NUMBER }}  # Correct reference from job output
+        PR_NUMBER: ${{ needs.create-or-fetch-pr.outputs.PR_NUMBER }}  # Retrieve correctly from outputs
       run: |
         if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
           echo "❌ PR_NUMBER is empty. Cannot approve PR."
