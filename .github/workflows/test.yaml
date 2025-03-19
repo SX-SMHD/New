@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'test.md' # Prevent bot commits from triggering itself
   workflow_dispatch:
 
 permissions:
@@ -16,7 +18,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Generate GitHub App Token
       id: generate-token
@@ -46,7 +48,8 @@ jobs:
         git commit -m 'Append Hello to test.md file' || echo "No new changes to commit"
 
     - name: Push changes
-      run: git push origin update-test-md --force
+      run: |
+        git push origin update-test-md --force
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
@@ -55,18 +58,16 @@ jobs:
       run: |
         sudo apt-get install -y jq
         PR_RESPONSE=$(curl -s -X GET \
-          -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:update-test-md")
-        
+
         PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "issuerepoapp bot")][0].number')
-        
-        if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
+
+        if [[ "$PR_NUMBER" != "null" && -n "$PR_NUMBER" ]]; then
           echo "Existing PR found: #$PR_NUMBER"
         else
           echo "Creating a new PR..."
           PR_CREATE_RESPONSE=$(curl -s -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
             -d '{
@@ -76,23 +77,22 @@ jobs:
                   "body": "This pull request appends Hello to the test.md file."
                 }')
           PR_NUMBER=$(echo "$PR_CREATE_RESPONSE" | jq '.number')
-          if [ "$PR_NUMBER" == "null" ] || [ -z "$PR_NUMBER" ]; then
+          if [[ "$PR_NUMBER" == "null" || -z "$PR_NUMBER" ]]; then
             echo "❌ Failed to create PR. Response: $PR_CREATE_RESPONSE"
             exit 1
           fi
           echo "✅ Created PR: #$PR_NUMBER"
         fi
+
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-        echo "::set-output name=PR_NUMBER::$PR_NUMBER"
 
     - name: Approve Pull Request
       run: |
-        if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
+        if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
           echo "❌ PR_NUMBER is empty. Cannot approve PR."
           exit 1
         fi
         RESPONSE=$(curl -s -X POST \
-          -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
           -d '{
@@ -103,12 +103,11 @@ jobs:
 
     - name: Auto-Merge Pull Request
       run: |
-        if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
+        if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
           echo "❌ PR_NUMBER is empty. Cannot merge PR."
           exit 1
         fi
         MERGE_RESPONSE=$(curl -s -X PUT \
-          -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
           -d '{
