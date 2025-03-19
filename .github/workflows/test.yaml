@@ -1,10 +1,11 @@
 name: Create, Approve, and Auto-Merge Pull Request
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Create, Approve, and Auto-Merge Pull Request"]
+    types:
+      - completed
+  workflow_dispatch:  # Allow manual trigger
 
 permissions:
   contents: write
@@ -53,13 +54,13 @@ jobs:
     - name: Create or get PR number
       id: check-pr
       run: |
-        sudo apt-get install -y jq  # Ensure jq is installed
+        sudo apt-get install -y jq
         PR_RESPONSE=$(curl -s -X GET \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:update-test-md")
         
-        PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "github-actions[bot]" or .user.login == "issuerepoapp bot")][0].number')
+        PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "issuerepoapp bot")][0].number')
         
         if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
           echo "Existing PR found: #$PR_NUMBER"
@@ -82,7 +83,6 @@ jobs:
           fi
           echo "✅ Created PR: #$PR_NUMBER"
         fi
-        # Store PR number for the next step
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
         echo "::set-output name=PR_NUMBER::$PR_NUMBER"
 
