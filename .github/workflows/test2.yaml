@@ -19,8 +19,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config --global user.name "issuerepoapp bot"
-          git config --global user.email "issuerepoapp-bot@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Modify test.md
         run: |
@@ -28,20 +28,7 @@ jobs:
           git add test.md
           git commit -m "Append 'Hello' to test.md" || echo "No changes to commit"
 
-      - name: Fetch All Branches from Remote
+      - name: Push to Main using GitHub App Token
         run: |
-          git fetch --all  # Fetch all branches from the remote repository
-          git branch -r  # List all remote branches to confirm dev exists
-
-      - name: Checkout main
-        run: |
-          git checkout main  # Ensure we're on the main branch
-          git pull origin main  # Pull latest changes from remote main to sync
-
-      - name: Merge dev into main
-        run: |
-          git fetch origin  # Fetch all branches from origin
-          git branch -r  # List remote branches again for debugging
-          git checkout main  # Ensure we are on the main branch
-          git merge --no-ff origin/dev -m "Automated merge from dev to main"  # Merge dev into main
-          git push origin main  # Push the changes to 'main'
+          # Push to the main branch using the GitHub App token
+          git push https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/${{ github.repository }} HEAD:main --force
