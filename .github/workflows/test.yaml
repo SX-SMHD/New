@@ -1,4 +1,4 @@
-name: Check Main Branch Protection
+name: Create and Merge Pull Request
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  check-branch-protection:
+  create-and-merge-pr:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,8 +31,40 @@ jobs:
         git add test.md
         git commit -m 'Append Hello to test.md file'
 
-    - name: Push changes
+    - name: Push changes to new branch
       run: |
-        git push origin main
+        git checkout -b update-test-md
+        git push origin update-test-md
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+    - name: Create pull request
+      uses: peter-evans/create-pull-request@v4
+      with:
+        token: ${{ steps.generate-token.outputs.token }}
+        branch: update-test-md
+        title: "Append Hello to test.md"
+        body: "This pull request appends 'Hello' to the test.md file."
+        base: main
+
+    - name: Merge pull request
+      uses: actions/github-script@v5
+      with:
+        github_token: ${{ steps.generate-token.outputs.token }}
+        script: |
+          const { context, github } = require('@actions/github');
+          const pr = await github.rest.pulls.list({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            head: 'update-test-md',
+            base: 'main'
+          });
+          if (pr.data.length > 0) {
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.data[0].number,
+              merge_method: 'merge'
+            });
+          }
