@@ -57,7 +57,7 @@ jobs:
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:update-test-md")
-
+        
         PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "github-actions[bot]")][0].number')
 
         if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
@@ -96,8 +96,10 @@ jobs:
 
     steps:
     - name: Approve pull request
+      env:
+        PR_NUMBER: ${{ env.PR_NUMBER }}  # Ensure PR_NUMBER is available in the environment
       run: |
-        if [ -z "$PR_NUMBER" ]; then
+        if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
           echo "❌ PR_NUMBER is empty. Cannot approve PR."
           exit 1
         fi
