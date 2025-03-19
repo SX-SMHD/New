@@ -1,9 +1,7 @@
 name: Push to Protected Main
 
 on:
-  push:
-    branches:
-      - dev  # Source branch
+  workflow_dispatch:  # Manually trigger the workflow
 
 jobs:
   push_to_main:
