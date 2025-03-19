@@ -6,29 +6,30 @@ on:
 jobs:
   push_to_main:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Generate GitHub App Token
-        id: app_token
-        uses: tibdex/github-app-token@v2
-        with:
-          app_id: ${{ secrets.ISSUEREPOAPP_APP_ID }}  # Use organization secret for App ID
-          private_key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}  # Use organization secret for Private Key
+    - name: Generate GitHub App Token
+      id: app_token
+      uses: tibdex/github-app-token@v2
+      with:
+        app_id: ${{ secrets.ISSUEREPOAPP_APP_ID }}  # GitHub App ID
+        private_key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}  # GitHub App private key
 
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    - name: Configure Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Modify test.md
-        run: |
-          echo "Hello" >> test.md
-          git add test.md
-          git commit -m "Append 'Hello' to test.md" || echo "No changes to commit"
+    - name: Modify test.md
+      run: |
+        echo "Hello" >> test.md
+        git add test.md
+        git commit -m "Append 'Hello' to test.md" || echo "No changes to commit"
 
-      - name: Push to Main using GitHub App Token
-        run: |
-          # Push to the main branch using the GitHub App token
-          git push https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/${{ github.repository }} HEAD:main --force
+    - name: Push to Main using GitHub App Token
+      run: |
+        # Push to the main branch using the GitHub App token
+        git push https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/${{ github.repository }} HEAD:main --force
