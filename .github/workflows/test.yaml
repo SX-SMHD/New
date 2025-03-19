@@ -1,4 +1,4 @@
-name: Create and Approve Pull Request
+name: Create and Auto-Approve Pull Request
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write  # Needed for approving PRs
+  pull-requests: write
 
 jobs:
   create-pr:
@@ -52,9 +52,9 @@ jobs:
     - name: Create pull request
       id: create-pr
       run: |
-        PR_RESPONSE=$(curl -X POST \
+        PR_RESPONSE=$(curl -s -X POST \
           -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: Bearer ${{ steps.generate-token.outputs.token }}" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           https://api.github.com/repos/${{ github.repository }}/pulls \
           -d '{
                 "title": "Append Hello to test.md",
@@ -63,7 +63,16 @@ jobs:
                 "body": "This pull request appends Hello to the test.md file."
               }')
 
+        echo "API RESPONSE: $PR_RESPONSE"  # Debugging output
+
         PR_NUMBER=$(echo "$PR_RESPONSE" | jq '.number')
+
+        if [ "$PR_NUMBER" == "null" ] || [ -z "$PR_NUMBER" ]; then
+          echo "❌ Failed to create PR. Response: $PR_RESPONSE"
+          exit 1
+        fi
+
+        echo "✅ Extracted PR_NUMBER: $PR_NUMBER"
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
   approve-pr:
@@ -75,7 +84,7 @@ jobs:
       run: |
         curl -X POST \
           -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews \
           -d '{
                 "event": "APPROVE",
