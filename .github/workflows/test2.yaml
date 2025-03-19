@@ -28,9 +28,13 @@ jobs:
           git add test.md
           git commit -m "Append 'Hello' to test.md" || echo "No changes to commit"
 
-      - name: Fetch Remote Branches
+      - name: Fetch all remote branches
         run: |
-          git fetch origin dev  # Fetch the 'dev' branch from remote
+          git fetch --all  # Fetch all branches from the remote repository
+
+      - name: Checkout dev branch (or correct branch name)
+        run: |
+          git checkout dev || echo "dev branch does not exist, skipping merge"  # Replace with the correct branch name if necessary
 
       - name: Push Changes & Merge to Main
         env:
@@ -38,5 +42,5 @@ jobs:
         run: |
           git fetch origin  # Fetch all branches from origin
           git checkout main  # Ensure we're on the main branch
-          git merge --no-ff origin/dev -m "Automated merge from dev to main"  # Merge remote 'dev' into 'main'
+          git merge --no-ff origin/dev -m "Automated merge from dev to main"  # Use the correct branch name if necessary
           git push origin main  # Push the changes to 'main'
