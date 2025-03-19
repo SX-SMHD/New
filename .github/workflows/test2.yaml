@@ -14,8 +14,8 @@ jobs:
         id: app_token
         uses: tibdex/github-app-token@v2
         with:
-          app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          app_id: ${{ secrets.ISSUEREPOAPP_APP_ID }}  # Use organization secret for App ID
+          private_key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}  # Use organization secret for Private Key
 
       - name: Configure Git
         run: |
@@ -30,7 +30,7 @@ jobs:
 
       - name: Push Changes & Merge to Main
         env:
-          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}  # Use GitHub App token for authentication
         run: |
           git fetch origin
           git checkout main
