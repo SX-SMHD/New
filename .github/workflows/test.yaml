@@ -57,7 +57,7 @@ jobs:
           git commit -m 'Add test.md file'
 
       - name: Push changes
-        uses: issuerepoapp
+        uses: owner/repo@ref # Replace with the correct owner/repo@ref for issuerepoapp
         with:
           github_token: ${{ secrets.ISSUEREPOAPP }}
           branch: main
