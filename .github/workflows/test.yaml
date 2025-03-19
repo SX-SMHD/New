@@ -52,7 +52,7 @@ jobs:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
     - name: Check if PR exists (only from GitHub Actions)
-      id: check-pr  # ID needed to store outputs
+      id: check-pr  # Step ID is needed for output storage
       run: |
         sudo apt-get install -y jq  # Ensure jq is installed
         PR_RESPONSE=$(curl -s -X GET \
@@ -89,7 +89,7 @@ jobs:
         echo "::set-output name=PR_NUMBER::$PR_NUMBER"
 
     - name: Output PR number
-      run: echo "Final PR Number: $PR_NUMBER"
+      run: echo "Final PR Number: ${{ steps.check-pr.outputs.PR_NUMBER }}"  # Correct syntax
 
   approve-pr:
     needs: create-or-fetch-pr
@@ -97,7 +97,7 @@ jobs:
     steps:
     - name: Approve pull request
       env:
-        PR_NUMBER: ${{ needs.create-or-fetch-pr.outputs.PR_NUMBER }}  # Use output from previous job
+        PR_NUMBER: ${{ needs.create-or-fetch-pr.outputs.PR_NUMBER }}  # Correct reference from job output
       run: |
         if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
           echo "❌ PR_NUMBER is empty. Cannot approve PR."
