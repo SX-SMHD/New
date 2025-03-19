@@ -18,12 +18,12 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0  # Ensures full history
+        fetch-depth: 0
 
     - name: Configure Git
       run: |
-        git config --global user.name 'issuerepoapp bot'
-        git config --global user.email 'issuerepoapp-bot@users.noreply.github.com'
+        git config --global user.name 'GitHub App Bot'
+        git config --global user.email 'bot@example.com'
 
     - name: Create Branch
       run: |
@@ -33,7 +33,7 @@ jobs:
 
     - name: Create or Update test.md
       run: |
-        echo "Hello" > test.md  # Creates the file or overwrites existing content
+        echo "Hello" > test.md
         git add test.md
         git commit -m "Create test.md and add 'Hello'"
 
@@ -41,13 +41,13 @@ jobs:
       run: |
         git push origin update-test-md --force-with-lease || (git pull --rebase origin update-test-md && git push origin update-test-md --force-with-lease)
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_APP_TOKEN }}
 
     - name: Create Pull Request
       id: create-pr
       run: |
         PR_RESPONSE=$(curl -s -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Authorization: token ${{ secrets.GITHUB_APP_TOKEN }}" \
           https://api.github.com/repos/${{ github.repository }}/pulls \
           -d '{
                 "title": "Create test.md with Hello",
@@ -64,11 +64,9 @@ jobs:
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
     - name: Approve Pull Request
-      env:
-        GH_PAT_APPROVER: ${{ secrets.GH_PAT_APPROVER }}
       run: |
         RESPONSE=$(curl -s -X POST \
-          -H "Authorization: token $GH_PAT_APPROVER" \
+          -H "Authorization: token ${{ secrets.GITHUB_APP_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
           -d '{
                 "event": "APPROVE",
@@ -79,7 +77,7 @@ jobs:
     - name: Auto-Merge PR
       run: |
         MERGE_RESPONSE=$(curl -s -X PUT \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Authorization: token ${{ secrets.GITHUB_APP_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
           -d '{
                 "commit_title": "Auto-merged PR",
