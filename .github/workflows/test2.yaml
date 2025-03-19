@@ -1,0 +1,40 @@
+name: Push to Protected Main
+
+on:
+  push:
+    branches:
+      - dev  # Source branch
+
+jobs:
+  push_to_main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate GitHub App Token
+        id: app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "issuerepoapp bot"
+          git config --global user.email "issuerepoapp-bot@users.noreply.github.com"
+
+      - name: Modify test.md
+        run: |
+          echo "Hello" >> test.md
+          git add test.md
+          git commit -m "Append 'Hello' to test.md" || echo "No changes to commit"
+
+      - name: Push Changes & Merge to Main
+        env:
+          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          git fetch origin
+          git checkout main
+          git merge --no-ff dev -m "Automated merge from dev to main"
+          git push origin main
