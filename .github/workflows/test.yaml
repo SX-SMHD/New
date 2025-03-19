@@ -32,9 +32,7 @@ jobs:
         git commit -m 'Append Hello to test.md file'
 
     - name: Push changes
-      uses: actions/github-script@v5
-      with:
-        github_token: ${{ steps.generate-token.outputs.token }}
-        script: |
-          const { execSync } = require('child_process');
-          execSync('git push origin main');
+      run: |
+        git push origin main
+      env:
+        GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
