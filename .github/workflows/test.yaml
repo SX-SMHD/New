@@ -57,7 +57,7 @@ jobs:
           git commit -m 'Add test.md file'
 
       - name: Push changes
-        uses: owner/repo@ref # Replace with the correct owner/repo@ref for issuerepoapp
+        uses: SX-SMHD/New/.github/actions/issuerepoapp@main # Replace with the correct path to your custom action
         with:
           github_token: ${{ secrets.ISSUEREPOAPP }}
           branch: main
