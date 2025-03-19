@@ -11,10 +11,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  create-or-fetch-pr:
+  create-and-approve-pr:
     runs-on: ubuntu-latest
-    outputs:
-      PR_NUMBER: ${{ steps.check-pr.outputs.PR_NUMBER }}  # Store PR_NUMBER correctly
 
     steps:
     - name: Checkout code
@@ -51,8 +49,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-    - name: Check if PR exists (only from GitHub Actions)
-      id: check-pr
+    - name: Check if PR exists or create one
+      id: check-or-create-pr
       run: |
         sudo apt-get install -y jq  # Ensure jq is installed
         PR_RESPONSE=$(curl -s -X GET \
@@ -84,20 +82,10 @@ jobs:
           echo "✅ Created PR: #$PR_NUMBER"
         fi
 
-        # Correctly set PR_NUMBER as step output
+        # Store PR_NUMBER as an environment variable
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-        echo "PR_NUMBER=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
-    - name: Output PR number
-      run: echo "Final PR Number: ${{ steps.check-pr.outputs.PR_NUMBER }}"  # Correct reference
-
-  approve-pr:
-    needs: create-or-fetch-pr
-    runs-on: ubuntu-latest
-    steps:
     - name: Approve pull request
-      env:
-        PR_NUMBER: ${{ needs.create-or-fetch-pr.outputs.PR_NUMBER }}  # Retrieve correctly from outputs
       run: |
         if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
           echo "❌ PR_NUMBER is empty. Cannot approve PR."
