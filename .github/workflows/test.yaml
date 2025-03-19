@@ -57,7 +57,7 @@ jobs:
         echo "Hello" >> test.md
         git add test.md
 
-        # Auto-resolve merge conflicts
+        # Auto-resolve merge conflicts by keeping both changes
         if [[ $(git ls-files -u | wc -l) -gt 0 ]]; then
           echo "🔀 Merge conflicts detected! Auto-resolving..."
           git diff --name-only --diff-filter=U | while read file; do
@@ -75,8 +75,7 @@ jobs:
 
     - name: Push changes safely
       run: |
-        git pull --rebase origin update-test-md
-        git push origin update-test-md --force-with-lease
+        git push origin update-test-md --force-with-lease || (git pull --rebase origin update-test-md && git push origin update-test-md)
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
@@ -88,7 +87,7 @@ jobs:
           -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&head=${{ github.repository_owner }}:update-test-md")
         PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.[0].number // empty')
-        
+
         if [[ -n "$PR_NUMBER" ]]; then
           echo "Existing PR found: #$PR_NUMBER"
         else
@@ -103,12 +102,14 @@ jobs:
                   "body": "This pull request appends Hello to the test.md file."
                 }')
           PR_NUMBER=$(echo "$PR_CREATE_RESPONSE" | jq -r '.number // empty')
+
           if [[ -z "$PR_NUMBER" ]]; then
             echo "❌ Failed to create PR. Response: $PR_CREATE_RESPONSE"
             exit 1
           fi
           echo "✅ Created PR: #$PR_NUMBER"
         fi
+
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
     - name: Approve Pull Request
