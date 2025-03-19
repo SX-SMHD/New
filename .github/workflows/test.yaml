@@ -1,7 +1,7 @@
 name: Create, Approve, and Auto-Merge PR
 
 on:
-  workflow_dispatch: # Only run when manually triggered
+  workflow_dispatch
 
 concurrency:
   group: auto-merge-pr
@@ -30,7 +30,7 @@ jobs:
       run: |
         LAST_COMMITTER=$(git log -1 --pretty=format:'%an')
         if [[ "$LAST_COMMITTER" == "issuerepoapp bot" ]]; then
-          echo "⚠️ Last commit was made by issuerepoapp bot. Skipping PR creation."
+          echo "Last commit was made by issuerepoapp bot. Skipping PR creation."
           exit 0
         fi
 
@@ -78,10 +78,10 @@ jobs:
                 }')
           PR_NUMBER=$(echo "$PR_CREATE_RESPONSE" | jq '.number')
           if [ "$PR_NUMBER" == "null" ] || [ -z "$PR_NUMBER" ]; then
-            echo "❌ Failed to create PR. Response: $PR_CREATE_RESPONSE"
+            echo "Failed to create PR. Response: $PR_CREATE_RESPONSE"
             exit 1
           fi
-          echo "✅ Created PR: #$PR_NUMBER"
+          echo "Created PR: #$PR_NUMBER"
         fi
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
         echo "::set-output name=PR_NUMBER::$PR_NUMBER"
@@ -91,7 +91,7 @@ jobs:
         GH_PAT_APPROVER: ${{ secrets.GH_PAT_APPROVER }}
       run: |
         if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
-          echo "❌ PR_NUMBER is empty. Cannot approve PR."
+          echo "PR_NUMBER is empty. Cannot approve PR."
           exit 1
         fi
         RESPONSE=$(curl -s -X POST \
@@ -106,7 +106,7 @@ jobs:
     - name: Auto-Merge Pull Request
       run: |
         if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
-          echo "❌ PR_NUMBER is empty. Cannot merge PR."
+          echo "PR_NUMBER is empty. Cannot merge PR."
           exit 1
         fi
         MERGE_RESPONSE=$(curl -s -X PUT \
