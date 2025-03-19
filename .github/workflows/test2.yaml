@@ -12,11 +12,11 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Generate GitHub App Token
-      id: app_token
-      uses: tibdex/github-app-token@v2
+      id: generate-token
+      uses: actions/create-github-app-token@v1
       with:
-        app_id: ${{ secrets.ISSUEREPOAPP_APP_ID }}  # GitHub App ID
-        private_key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}  # GitHub App private key
+        app-id: ${{ secrets.ISSUEREPOAPP_APP_ID }}  # Your GitHub App ID
+        private-key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}  # Your GitHub App private key
 
     - name: Configure Git
       run: |
@@ -31,5 +31,5 @@ jobs:
 
     - name: Push to Main using GitHub App Token
       run: |
-        # Use GitHub App token for authentication and push to main branch
-        git push https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/${{ github.repository }} HEAD:main --force
+        # Use GitHub App token for authentication and push to the main branch
+        git push https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }} HEAD:main --force
