@@ -30,7 +30,7 @@ jobs:
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-    - name: Create new branch
+    - name: Create or update branch
       run: |
         git checkout -b update-test-md || git checkout update-test-md
         echo "Hello" >> test.md
@@ -52,6 +52,7 @@ jobs:
     - name: Check if PR exists (only from GitHub Actions)
       id: check-pr
       run: |
+        sudo apt-get install -y jq  # Ensure jq is installed
         PR_RESPONSE=$(curl -s -X GET \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -86,6 +87,9 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
         fi
 
+    - name: Output PR number
+      run: echo "Final PR Number: $PR_NUMBER"
+
   approve-pr:
     needs: create-or-fetch-pr
     runs-on: ubuntu-latest
@@ -93,11 +97,18 @@ jobs:
     steps:
     - name: Approve pull request
       run: |
-        curl -X POST \
+        if [ -z "$PR_NUMBER" ]; then
+          echo "❌ PR_NUMBER is empty. Cannot approve PR."
+          exit 1
+        fi
+
+        RESPONSE=$(curl -s -X POST \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
           -d '{
                 "event": "APPROVE",
                 "body": "Auto-approved by GitHub Actions"
-              }'
+              }')
+
+        echo "Response: $RESPONSE"
