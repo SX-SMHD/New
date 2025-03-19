@@ -25,13 +25,14 @@ jobs:
           git config --global user.name "issuerepoapp bot"
           git config --global user.email "issuerepoapp-bot@users.noreply.github.com"
 
-      - name: Modify test.md (or another file)
+      - name: Modify test.md
         run: |
           echo "Hello" >> test.md
           git add test.md
           git commit -m "Append 'Hello' to test.md" || echo "No changes to commit"
 
-      - name: Push to main using GitHub App token
+      - name: Git push
         run: |
-          git remote set-url origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}
-          git push origin HEAD:main --force  # Pushing directly to main branch
+          set -ex && git status
+          set -ex && git remote set-url origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}
+          set -ex && git push origin HEAD:main --force  # Pushing directly to main branch
