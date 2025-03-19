@@ -11,7 +11,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  create-pr:
+  create-or-fetch-pr:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,10 +32,10 @@ jobs:
 
     - name: Create new branch
       run: |
-        git checkout -b update-test-md
+        git checkout -b update-test-md || git checkout update-test-md
         echo "Hello" >> test.md
         git add test.md
-        git commit -m 'Append Hello to test.md file'
+        git commit -m 'Append Hello to test.md file' || echo "No new changes to commit"
 
     - name: Pull latest changes
       run: |
@@ -49,34 +49,45 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-    - name: Create pull request
-      id: create-pr
+    - name: Check if PR exists (only from GitHub Actions)
+      id: check-pr
       run: |
-        PR_RESPONSE=$(curl -s -X POST \
+        PR_RESPONSE=$(curl -s -X GET \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          https://api.github.com/repos/${{ github.repository }}/pulls \
-          -d '{
-                "title": "Append Hello to test.md",
-                "head": "update-test-md",
-                "base": "main",
-                "body": "This pull request appends Hello to the test.md file."
-              }')
+          "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:update-test-md")
 
-        echo "API RESPONSE: $PR_RESPONSE"  # Debugging output
+        PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "github-actions[bot]")][0].number')
 
-        PR_NUMBER=$(echo "$PR_RESPONSE" | jq '.number')
+        if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
+          echo "PR already exists from GitHub Actions: #$PR_NUMBER"
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+        else
+          echo "No PR from GitHub Actions found. Creating a new one..."
+          PR_CREATE_RESPONSE=$(curl -s -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/pulls \
+            -d '{
+                  "title": "Append Hello to test.md",
+                  "head": "update-test-md",
+                  "base": "main",
+                  "body": "This pull request appends Hello to the test.md file."
+                }')
 
-        if [ "$PR_NUMBER" == "null" ] || [ -z "$PR_NUMBER" ]; then
-          echo "❌ Failed to create PR. Response: $PR_RESPONSE"
-          exit 1
+          PR_NUMBER=$(echo "$PR_CREATE_RESPONSE" | jq '.number')
+
+          if [ "$PR_NUMBER" == "null" ] || [ -z "$PR_NUMBER" ]; then
+            echo "❌ Failed to create PR. Response: $PR_CREATE_RESPONSE"
+            exit 1
+          fi
+
+          echo "✅ Created PR: #$PR_NUMBER"
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
         fi
 
-        echo "✅ Extracted PR_NUMBER: $PR_NUMBER"
-        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-
   approve-pr:
-    needs: create-pr
+    needs: create-or-fetch-pr
     runs-on: ubuntu-latest
 
     steps:
