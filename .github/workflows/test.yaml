@@ -37,12 +37,14 @@ jobs:
         git commit -m 'Append Hello to test.md file'
 
     - name: Pull latest changes
-      run: git pull origin main --rebase
+      run: |
+        git fetch origin update-test-md || echo "No remote branch found"
+        git rebase origin/update-test-md || echo "Rebase failed, continuing"
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
     - name: Push changes
-      run: git push origin update-test-md
+      run: git push origin update-test-md --force
       env:
         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
