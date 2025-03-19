@@ -1,4 +1,4 @@
-name: Create test.md and Add Hello
+name: Create, Approve, and Auto-Merge PR
 
 on:
   push:
@@ -11,73 +11,106 @@ permissions:
   pull-requests: write
 
 jobs:
-  create-file-pr:
+  create-approve-merge-pr:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
+    - name: Checkout code
       uses: actions/checkout@v3
+
+    - name: Generate GitHub App Token
+      id: generate-token
+      uses: actions/create-github-app-token@v1
       with:
-        fetch-depth: 0
+        app-id: ${{ secrets.ISSUEREPOAPP_APP_ID }}
+        private-key: ${{ secrets.ISSUEREPOAPP_PRIVATE_KEY }}
+
+    - name: Prevent Bot Loop
+      run: |
+        LAST_COMMITTER=$(git log -1 --pretty=format:'%an')
+        if [[ "$LAST_COMMITTER" == "issuerepoapp bot" ]]; then
+          echo "⚠️ Last commit was made by issuerepoapp bot. Exiting to prevent infinite loop."
+          exit 0
+        fi
 
     - name: Configure Git
       run: |
-        git config --global user.name 'GitHub App Bot'
-        git config --global user.email 'bot@example.com'
+        git config --global user.name 'issuerepoapp bot'
+        git config --global user.email 'issuerepoapp-bot@users.noreply.github.com'
 
-    - name: Create Branch
+    - name: Create or update branch
       run: |
-        BRANCH_NAME="update-test-md"
-        git fetch origin main
-        git checkout -b $BRANCH_NAME
-
-    - name: Create or Update test.md
-      run: |
-        echo "Hello" > test.md
+        git checkout -b update-test-md || git checkout update-test-md
+        echo "Hello" >> test.md
         git add test.md
-        git commit -m "Create test.md and add 'Hello'"
+        git commit -m 'Append Hello to test.md file' || echo "No new changes to commit"
 
-    - name: Push Changes
-      run: |
-        git push origin update-test-md --force-with-lease || (git pull --rebase origin update-test-md && git push origin update-test-md --force-with-lease)
+    - name: Push changes
+      run: git push origin update-test-md --force
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_APP_TOKEN }}
+        GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-    - name: Create Pull Request
-      id: create-pr
+    - name: Check for existing PR
+      id: check-pr
       run: |
-        PR_RESPONSE=$(curl -s -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_APP_TOKEN }}" \
-          https://api.github.com/repos/${{ github.repository }}/pulls \
-          -d '{
-                "title": "Create test.md with Hello",
-                "head": "update-test-md",
-                "base": "main",
-                "body": "This pull request creates test.md and adds Hello."
-              }')
-        PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number // empty')
-        if [[ -z "$PR_NUMBER" ]]; then
-          echo "❌ Failed to create PR. Response: $PR_RESPONSE"
-          exit 1
+        sudo apt-get install -y jq
+        PR_RESPONSE=$(curl -s -X GET \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:update-test-md")
+        
+        PR_NUMBER=$(echo "$PR_RESPONSE" | jq '[.[] | select(.user.login == "issuerepoapp bot")][0].number')
+
+        if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
+          echo "Existing PR found: #$PR_NUMBER"
+        else
+          echo "Creating a new PR..."
+          PR_CREATE_RESPONSE=$(curl -s -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
+            https://api.github.com/repos/${{ github.repository }}/pulls \
+            -d '{
+                  "title": "Append Hello to test.md",
+                  "head": "update-test-md",
+                  "base": "main",
+                  "body": "This pull request appends Hello to the test.md file."
+                }')
+          PR_NUMBER=$(echo "$PR_CREATE_RESPONSE" | jq '.number')
+          if [ "$PR_NUMBER" == "null" ] || [ -z "$PR_NUMBER" ]; then
+            echo "❌ Failed to create PR. Response: $PR_CREATE_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Created PR: #$PR_NUMBER"
         fi
-        echo "✅ Created PR: #$PR_NUMBER"
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+        echo "::set-output name=PR_NUMBER::$PR_NUMBER"
 
     - name: Approve Pull Request
+      env:
+        GH_PAT_APPROVER: ${{ secrets.GH_PAT_APPROVER }}
       run: |
+        if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
+          echo "❌ PR_NUMBER is empty. Cannot approve PR."
+          exit 1
+        fi
         RESPONSE=$(curl -s -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_APP_TOKEN }}" \
+          -H "Authorization: token $GH_PAT_APPROVER" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
           -d '{
                 "event": "APPROVE",
-                "body": "Auto-approved by GitHub Actions"
+                "body": "Auto-approved by GitHub Actions (via separate account)"
               }')
         echo "Approval Response: $RESPONSE"
 
-    - name: Auto-Merge PR
+    - name: Auto-Merge Pull Request
       run: |
+        if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
+          echo "❌ PR_NUMBER is empty. Cannot merge PR."
+          exit 1
+        fi
         MERGE_RESPONSE=$(curl -s -X PUT \
-          -H "Authorization: token ${{ secrets.GITHUB_APP_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ steps.generate-token.outputs.token }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
           -d '{
                 "commit_title": "Auto-merged PR",
