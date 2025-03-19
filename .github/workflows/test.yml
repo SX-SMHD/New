@@ -1,0 +1,63 @@
+name: scheduled-create-issue
+
+on:
+  schedule:
+    - cron: '0 16 * * *' # UTC: '0 16 * * *', JST: '0 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  scheduled-create-issue:
+    runs-on: ubuntu-latest
+    environment:
+      name: main
+    steps:
+      - name: Upload event file
+        uses: actions/upload-artifact@v4
+        with:
+          name: event-file
+          path: ${{ github.event_path }}
+          retention-days: 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          token: ${{ secrets.ISSUEREPOAPP }}
+
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('.github/workflows/requirements/scheduled-create-issue.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r .github/workflows/requirements/scheduled-create-issue.txt
+
+      - name: Create Issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.ISSUEREPOAPP }}
+        run: |
+          python .github/workflows/scheduled-create-issue.py
+
+      - name: Create and Push test.md
+        run: echo "# Test File" > test.md
+
+      - name: Commit changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add test.md
+          git commit -m 'Add test.md file'
+
+      - name: Push changes
+        uses: issuerepoapp
+        with:
+          github_token: ${{ secrets.ISSUEREPOAPP }}
+          branch: main
