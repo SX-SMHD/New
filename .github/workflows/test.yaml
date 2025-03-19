@@ -17,6 +17,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # Ensures full history to handle conflicts
 
     - name: Generate GitHub App Token
       id: generate-token
@@ -42,9 +44,21 @@ jobs:
       run: |
         git fetch origin update-test-md || true
         git checkout -b update-test-md || git checkout update-test-md
-        git pull --rebase origin update-test-md || echo "No remote changes to rebase."
+        git pull origin update-test-md --rebase || echo "No remote changes to rebase."
+        
         echo "Hello" >> test.md
         git add test.md
+
+        # Auto-resolve merge conflicts by keeping both changes
+        if [[ $(git ls-files -u | wc -l) -gt 0 ]]; then
+          echo "🔀 Merge conflicts detected! Auto-resolving..."
+          git diff --name-only --diff-filter=U | while read file; do
+            git checkout --ours "$file"
+            git add "$file"
+          done
+          git rebase --continue || echo "✅ Merge conflicts resolved."
+        fi
+
         if git diff --cached --quiet; then
           echo "No new changes to commit."
         else
