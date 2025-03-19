@@ -20,8 +20,9 @@ jobs:
 
     - name: Configure Git
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        # Set the Git user for the GitHub App
+        git config --global user.name "issuerepoapp bot"  # Replace with your GitHub App's name
+        git config --global user.email "issuerepoapp-bot@users.noreply.github.com"  # Replace with your GitHub App's email
 
     - name: Modify test.md
       run: |
