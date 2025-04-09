@@ -3,6 +3,7 @@ name: Notify Teams on GitHub Events
 on:
   repository_dispatch:
     types: [github-event]  # This event type should match
+
 jobs:
   notify_teams:
     runs-on: ubuntu-latest
