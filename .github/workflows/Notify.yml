@@ -54,9 +54,9 @@ jobs:
             # Print the response to debug and check for errors
             echo "API Response (Page $page): $response"
             
-            # If the response is empty or an error, exit the loop
-            if [[ "$response" == "[]" || $(echo "$response" | jq -r '.message') == "Not Found" ]]; then
-              echo "No repositories or error fetching repositories"
+            # If the response is empty, exit the loop
+            if [[ "$response" == "[]" ]]; then
+              echo "No repositories found or error fetching repositories"
               break
             fi
             
@@ -64,7 +64,6 @@ jobs:
             repos+=($(echo "$response" | jq -r '.[].name'))
             
             # Check if there are more pages to fetch
-            # If the length of the response is less than 100, we have reached the last page
             if [[ $(echo "$response" | jq -r 'length') -lt 100 ]]; then
               break
             fi
