@@ -2,7 +2,7 @@ name: Notify Teams on GitHub Events
 
 on:
   repository_dispatch:
-    types: [github-event]  # The type of event to listen for
+    types: [github-event]  # This event type should match
 
 jobs:
   notify_teams:
