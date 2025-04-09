@@ -1,18 +1,43 @@
-name: Trigger Central Notification
+name: Notify Teams on GitHub Events
 
 on:
-  push:
-  issues:
-  issue_comment:
+  repository_dispatch:
+    types: [github-event]  # The type of event to listen for
 
 jobs:
-  call-central:
+  notify_teams:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Dispatch to Central Repo
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Ensure TEAMS_WEBHOOK_URL is set
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/SX-SMHD/New/dispatches \
-            -d '{"event_type": "${{ github.event_name }}", "client_payload": {"repo": "${{ github.repository }}", "actor": "${{ github.actor }}"}}'
+          if [[ -z "${{ secrets.TEAMS_WEBHOOK_URL }}" ]]; then
+            echo "Error: TEAMS_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+      - name: Send notification to Teams
+        run: |
+          case "${{ github.event.action }}" in
+            push)
+              curl -H 'Content-Type: application/json' \
+                   -d "{\"text\": \"GitHub Push event triggered in repository '${{ github.repository }}'.\"}" \
+                   "${{ secrets.TEAMS_WEBHOOK_URL }}" -v
+              ;;
+            issues)
+              curl -H 'Content-Type: application/json' \
+                   -d "{\"text\": \"GitHub Issue event in repository '${{ github.repository }}'. Issue #${{ github.event.issue.number }}: '${{ github.event.issue.title }}'\"}" \
+                   "${{ secrets.TEAMS_WEBHOOK_URL }}" -v
+              ;;
+            issue_comment)
+              curl -H 'Content-Type: application/json' \
+                   -d "{\"text\": \"GitHub Issue Comment event triggered in repository '${{ github.repository }}'. Comment on Issue #${{ github.event.issue.number }}: '${{ github.event.comment.body }}'\"}" \
+                   "${{ secrets.TEAMS_WEBHOOK_URL }}" -v
+              ;;
+            *)
+              echo "Unhandled event type: ${{ github.event.action }}"
+              ;;
+          esac
