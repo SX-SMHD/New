@@ -2,7 +2,14 @@ name: Notify Teams on GitHub Events
 
 on:
   repository_dispatch:
-    types: [github-event]  # This event type should match
+    types: [github-event]
+  push:
+    branches:
+      - main
+  issues:
+    types: [opened, closed, reopened]
+  issue_comment:
+    types: [created, edited]
 
 jobs:
   notify_teams:
@@ -21,23 +28,33 @@ jobs:
 
       - name: Send notification to Teams
         run: |
-          case "${{ github.event.action }}" in
+          # Custom message format for various event types
+          case "${{ github.event_name }}" in
             push)
+              # Push event details
               curl -H 'Content-Type: application/json' \
-                   -d "{\"text\": \"GitHub Push event triggered in repository '${{ github.repository }}'.\"}" \
+                   -d "{\"text\": \"GitHub Push event triggered by '${{ github.actor }}' in repository '${{ github.repository }}'. Pushed to branch '${{ github.ref }}'.\"}" \
                    "${{ secrets.TEAMS_WEBHOOK_URL }}" -v
               ;;
             issues)
+              # Issue event details
               curl -H 'Content-Type: application/json' \
-                   -d "{\"text\": \"GitHub Issue event in repository '${{ github.repository }}'. Issue #${{ github.event.issue.number }}: '${{ github.event.issue.title }}'\"}" \
+                   -d "{\"text\": \"GitHub Issue event triggered by '${{ github.actor }}' in repository '${{ github.repository }}'. Issue #${{ github.event.issue.number }}: '${{ github.event.issue.title }}'. Action: '${{ github.event.action }}'\"}" \
                    "${{ secrets.TEAMS_WEBHOOK_URL }}" -v
               ;;
             issue_comment)
+              # Issue comment details
               curl -H 'Content-Type: application/json' \
-                   -d "{\"text\": \"GitHub Issue Comment event triggered in repository '${{ github.repository }}'. Comment on Issue #${{ github.event.issue.number }}: '${{ github.event.comment.body }}'\"}" \
+                   -d "{\"text\": \"GitHub Issue Comment event triggered by '${{ github.actor }}' in repository '${{ github.repository }}'. Comment on Issue #${{ github.event.issue.number }}: '${{ github.event.comment.body }}'.\"}" \
+                   "${{ secrets.TEAMS_WEBHOOK_URL }}" -v
+              ;;
+            repository_dispatch)
+              # Repository dispatch event details
+              curl -H 'Content-Type: application/json' \
+                   -d "{\"text\": \"GitHub Repository Dispatch event triggered by '${{ github.actor }}' in repository '${{ github.repository }}'. Custom event type: '${{ github.event.action }}'.\"}" \
                    "${{ secrets.TEAMS_WEBHOOK_URL }}" -v
               ;;
             *)
-              echo "Unhandled event type: ${{ github.event.action }}"
+              echo "Unhandled event type: ${{ github.event_name }}"
               ;;
           esac
